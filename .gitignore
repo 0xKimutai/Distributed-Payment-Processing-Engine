@@ -1,0 +1,33 @@
+# ── Maven build output ──────────────────────────────────────
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+# ── IDE files ───────────────────────────────────────────────
+.idea/
+*.iws
+*.iml
+*.ipr
+.vscode/
+*.code-workspace
+
+# ── OS files ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Spring Boot ─────────────────────────────────────────────
+*.log
+spring-boot-*.log
+
+# ── Docs (interview notes — not for public repo) ────────────
+docs/
+
+# ── Sensitive config — never commit real credentials ────────
+# application-prod.properties
+# application-secrets.properties
+
+# ── Docker volumes (if mounted locally) ─────────────────────
+postgres_data/
+redis_data/
+rabbitmq_data/

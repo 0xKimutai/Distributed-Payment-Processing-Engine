@@ -1,0 +1,92 @@
+version: "3.9"
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: payflow-postgres
+    environment:
+      POSTGRES_USER: payflow
+      POSTGRES_PASSWORD: payflow_secret
+      POSTGRES_DB: payflow_db
+    ports:
+      - "5440:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis ───────────────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: payflow-redis
+    ports:
+      - "6382:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Zookeeper (required by Kafka) ───────────────────────────
+  # WHY: Kafka needs Zookeeper for cluster coordination
+  # (newer Kafka versions use KRaft mode without Zookeeper,
+  #  but Zookeeper is still widely used in production)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.1
+    container_name: payflow-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+
+  # ── Kafka ───────────────────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.6.1
+    container_name: payflow-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD", "kafka-broker-api-versions", "--bootstrap-server", "localhost:9092"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+
+  # ── RabbitMQ ────────────────────────────────────────────────
+  # WHY: We use RabbitMQ in the notification service intentionally
+  # so you can see Kafka vs RabbitMQ side by side in the same project
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: payflow-rabbitmq
+    ports:
+      - "5672:5672"    # AMQP protocol port
+      - "15672:15672"  # Management UI (open in browser)
+    environment:
+      RABBITMQ_DEFAULT_USER: payflow
+      RABBITMQ_DEFAULT_PASS: payflow_secret
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+  redis_data:
+  rabbitmq_data:
